@@ -1,26 +1,75 @@
 import socket
 import threading
+import random
 
 
-def binary_exponentiation(a: int, power: int) -> int:
-    """Calculates power of a using binary exponentiation algorithm"""
+def modular_exponentiation(a: int, power: int, mod: int) -> int:
+    """Calculates modulo of power of a using binary exponentiation algorithm"""
+    res = 1
+    while power > 0:
+        if power & 1:
+            res = res*a % mod
+        a = a**2 % mod
+        power >>= 1
+    return res
+
+
+def calculate_encryption_exponent():
+    """Calculates encryption exponent a"""
     pass
 
 
-def calculate_a():
+def calculate_decryption_exponent():
+    """Calculates encryption exponent b"""
     pass
 
 
-def calculate_b():
-    pass
+def is_prime(x: int, k: int) -> bool:
+    """Checks if number x is prime with probability of correct result >= 1-(1/4)^k"""
+
+    if x&1 == 0:
+        return False
+
+    exponent = 0
+    mod = x
+    x -= 1
+
+    while x&1 == 0:
+        x >>= 1
+        exponent += 1
+
+    multiplier = x
+
+    for i in random.sample(range(2, mod-1), k):
+
+        cur = pow(i, multiplier, mod)
+        if cur in (1, mod-1):
+            continue
+
+        for _ in range(exponent-1):
+            cur = pow(cur, 2, mod)
+            if cur == 1:
+                print(1)
+                return False
+            if cur == mod-1:
+                break
+        else:
+            print(2)
+            return False
+
+    return True
 
 
 def generate_prime(bit_length: int) -> int:
     pass
 
 
+def genarate_prime_pair():
+    pass
+
+
 def find_inverse(a: int, n: int) -> int:
-    """find inverse of a mod n"""
+    """Finds inverse of a mod n"""
     pass
 
 
@@ -99,6 +148,6 @@ class Client:
 
             self.s.send(message.encode())
 
-if __name__ == "__main__":
-    cl = Client("127.0.0.1", 9001, "b_g")
-    cl.init_connection()
+# if __name__ == "__main__":
+#     cl = Client("127.0.0.1", 9001, "b_g")
+#     cl.init_connection()

@@ -24,7 +24,7 @@ class Server:
             self.username_lookup[c] = username
             self.clients.append(c)
 
-            # send public key to the client 
+            # send public key to the client
 
             # ...
 
@@ -32,14 +32,14 @@ class Server:
 
             # ...
 
-            # send the encrypted secret to a client 
+            # send the encrypted secret to a client
 
             # ...
 
             threading.Thread(target=self.handle_client,args=(c,addr,)).start()
 
     def broadcast(self, msg: str):
-        for client in self.clients: 
+        for client in self.clients:
 
             # encrypt the message
 
@@ -47,7 +47,7 @@ class Server:
 
             client.send(msg.encode())
 
-    def handle_client(self, c: socket, addr): 
+    def handle_client(self, c: socket, addr):
         while True:
             msg = c.recv(1024)
 

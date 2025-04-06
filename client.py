@@ -1,6 +1,56 @@
 import socket
 import threading
 
+
+def binary_exponentiation(a: int, power: int) -> int:
+    """Calculates power of a using binary exponentiation algorithm"""
+    pass
+
+
+def calculate_a():
+    pass
+
+
+def calculate_b():
+    pass
+
+
+def generate_prime(bit_length: int) -> int:
+    pass
+
+
+def find_inverse(a: int, n: int) -> int:
+    """find inverse of a mod n"""
+    pass
+
+
+def euler_totient(p, q) -> int:
+    return (p-1)*(q-1)
+
+
+def encode_message() -> int:
+    pass
+
+
+def decode_message() -> str:
+    pass
+
+
+def encrypt() -> str:
+    pass
+
+
+def decrypt() -> str:
+    pass
+
+
+def calculate_message_hash():
+    pass
+
+
+def verify_message_integrity() -> bool:
+    pass
+
 class Client:
     def __init__(self, server_ip: str, port: int, username: str) -> None:
         self.server_ip = server_ip

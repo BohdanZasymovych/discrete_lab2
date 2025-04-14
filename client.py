@@ -90,7 +90,6 @@ def calculate_encryption_exponent(phi_n: int) -> int:
         if gcd(a, phi_n) == 1:
             return a
         a += 2
-    # If we don't find any 'a', we try some small primes.
     for small_prime in [3, 5, 7, 11, 13, 17, 19, 23]:
         if small_prime < phi_n and gcd(small_prime, phi_n) == 1:
             return small_prime
@@ -102,6 +101,7 @@ def calculate_decryption_exponent(a, phi):
     """
     b = find_inverse(a, phi)
     return b
+
 
 def is_prime(x: int, k: int) -> bool:
     """Checks if a number x is prime using a probabilistic Miller-Rabin primality test.
@@ -276,7 +276,7 @@ def modular_inverse(a: int, n: int) -> int | None:
     Returns:
         The modular multiplicative inverse of a modulo n (integer), or None if it doesn't exist.
     """
-    gcd_val, x, y = find_inverse(a, n)
+    gcd_val, x, _ = find_inverse(a, n)
 
     if gcd_val != 1:
         return None
@@ -284,17 +284,129 @@ def modular_inverse(a: int, n: int) -> int | None:
         return x % n
 
 
-def msg_to_number(msg_str):
+def msg_to_number(message, alphabet_type="ukr", n=None) -> list[int]:
     """
-    Converts the message line to an integer for RSA.
+    Converts messages into a sequence of integers for RSA.
     Args:
-        msg_str: A message line.
+        message: A message line.
+        alphabet_type: Alphabet type ("ukr" or "eng").
+        n: The maximum value for determining the size of the block.
     Returns:
-        An integer that represents a message in the form of bytes.
+        List of integers representing the message blocks.
     """
-    msg_bytes = msg_str.encode("utf-8")
-    msg_int = int.from_bytes(msg_bytes, byteorder="big")
-    return msg_int
+    if alphabet_type == "ukr":
+        letters_upper = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ "
+        letters_lower = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
+        max_digit = 33
+    else:
+        letters_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+        letters_lower = "abcdefghijklmnopqrstuvwxyz "
+        max_digit = 26
+
+    digits = "0123456789"
+    punctuation = ".,!?-:;()"
+
+    letter_to_num = {}
+
+    for i, letter in enumerate(letters_upper):
+        letter_to_num[letter] = f"{i:02}"
+
+    for i, letter in enumerate(letters_lower):
+        letter_to_num[letter] = f"{60+i:02}"
+
+    for i, digit in enumerate(digits):
+        letter_to_num[digit] = f"{40+i:02}"
+
+    for i, punct in enumerate(punctuation):
+        letter_to_num[punct] = f"{50+i:02}"
+
+    digits_str = ""
+
+    for char in message:
+        if char in letter_to_num:
+            digits_str += letter_to_num[char]
+        else:
+            digits_str += "99"
+
+    if n is None:
+        n = 2**2048
+
+    n_2 = 1
+    while int(str(max_digit) * n_2) < n:
+        n_2 += 1
+    n_2 -= 1
+    block_size = n_2
+
+    if len(digits_str) % block_size != 0:
+        padding_needed = block_size - (len(digits_str) % block_size)
+        digits_str += "0" * padding_needed
+
+    blocks = [
+        int(digits_str[i : i + block_size])
+        for i in range(0, len(digits_str), block_size)
+    ]
+    return blocks
+
+
+def number_to_msg(blocks, alphabet_type="ukr", block_size=None):
+    """
+    Converts encoded number blocks back to the original message.
+    Args:
+        blocks: List of integers representing encoded message blocks.
+        alphabet_type: Alphabet type ("ukr" or "eng").
+        block_size: The size of each block in digits.
+    Returns:
+        Original message as a string.
+    """
+    if alphabet_type == "ukr":
+        letters_upper = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ "
+        letters_lower = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
+    else:
+        letters_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+        letters_lower = "abcdefghijklmnopqrstuvwxyz "
+
+    digits = "0123456789"
+    punctuation = ".,!?-:;()"
+
+    num_to_letter = {}
+
+    for i, letter in enumerate(letters_upper):
+        num_to_letter[f"{i:02}"] = letter
+
+    for i, letter in enumerate(letters_lower):
+        num_to_letter[f"{60+i:02}"] = letter
+
+    for i, digit in enumerate(digits):
+        num_to_letter[f"{40+i:02}"] = digit
+
+    for i, punct in enumerate(punctuation):
+        num_to_letter[f"{50+i:02}"] = punct
+
+    num_to_letter["99"] = "?"
+
+    if block_size is None:
+        block_size = len(str(blocks[0]))
+        if block_size % 2 != 0:
+            block_size += 1
+
+    digits_str = ""
+    for block in blocks:
+        block_str = str(block).zfill(block_size)
+        digits_str += block_str
+
+    while digits_str.endswith("00") and len(digits_str) > 2:
+        digits_str = digits_str[:-2]
+
+    message = ""
+    for i in range(0, len(digits_str), 2):
+        if i + 1 < len(digits_str):
+            digit_pair = digits_str[i : i + 2]
+            if digit_pair in num_to_letter:
+                message += num_to_letter[digit_pair]
+            else:
+                message += "?"
+
+    return message
 
 
 def euler_totient(p: int, q: int) -> int:
@@ -385,6 +497,8 @@ class Client:
             self.s.send(message.encode())
 
 
-# if __name__ == "__main__":
-#     cl = Client("127.0.0.1", 9001, "b_g")
-#     cl.init_connection()
+if __name__ == "__main__":
+    num = msg_to_number("1.робота - запорука безпеки?", alphabet_type="ukr")
+    print(num)
+    msg = number_to_msg(num, alphabet_type="ukr")
+    print(msg)

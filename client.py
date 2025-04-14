@@ -139,12 +139,10 @@ def is_prime(x: int, k: int) -> bool:
         for _ in range(exponent - 1):
             cur = pow(cur, 2, mod)
             if cur == 1:
-                print(1)
                 return False
             if cur == mod - 1:
                 break
         else:
-            print(2)
             return False
 
     return True

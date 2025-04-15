@@ -204,11 +204,7 @@ def generate_prime(bit_length: int) -> int:
     Returns:
         A randomly generated prime number with the specified bit length (integer).
     """
-    # lower_bound = 2 ** (bit_length - 1)
-    # upper_bound = 2**bit_length - 1
-
-    lower_bound = modular_exponentiation(2, (bit_length-1))
-    2 ** (bit_length - 1)
+    lower_bound = 2 ** (bit_length - 1)
     upper_bound = 2 ** bit_length - 1
 
     while True:

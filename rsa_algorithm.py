@@ -1,6 +1,11 @@
 """rsa_algorithm.py"""
 import random
+from time import time
 from hashlib import sha256
+
+
+# The length of the modulus for RSA encryption/decryption.
+MODULUS_BIT_LENGTH = 4096
 
 
 def binary_exponentiation(a: int, power: int, mod: int | None=None) -> int:
@@ -64,18 +69,14 @@ def calculate_encryption_exponent(phi_n: int) -> int:
         A suitable encryption exponent 'a' (integer).
     """
 
-    lower_bound = 65537
-
-    if lower_bound >= phi_n:
-        lower_bound = 3
+    lower_bound = 65537 if phi_n <= 65537 else 3
 
     if lower_bound <= 65537 < phi_n and gcd(65537, phi_n) == 1:
         return 65537
 
     max_attempts = 100
-    attempts = 0
 
-    while attempts < max_attempts:
+    while max_attempts > 0:
 
         a = random.randint(lower_bound, phi_n - 1)
         if a % 2 == 0:
@@ -86,11 +87,9 @@ def calculate_encryption_exponent(phi_n: int) -> int:
         if gcd(a, phi_n) == 1:
             return a
 
-        attempts += 1
+        max_attempts -= 1
 
     a = lower_bound
-    # if a % 2 == 0:
-    #     a += 1
 
     while a < phi_n:
         if gcd(a, phi_n) == 1:
@@ -98,12 +97,12 @@ def calculate_encryption_exponent(phi_n: int) -> int:
         a += 2
 
     # If we don't find any 'a', we try some small primes.
-    # for small_prime in [3, 5, 7, 11, 13, 17, 19, 23]:
-    #     if small_prime < phi_n and gcd(small_prime, phi_n) == 1:
-    #         return small_prime
+    for small_prime in [3, 5, 7, 11, 13, 17, 19, 23]:
+        if small_prime < phi_n and gcd(small_prime, phi_n) == 1:
+            return small_prime
 
 
-def calculate_decryption_exponent(a, phi):
+def calculate_decryption_exponent(a, phi: int) -> int:
     """
     Calculates the decryption exponent 'd' for RSA.
     """
@@ -111,7 +110,7 @@ def calculate_decryption_exponent(a, phi):
     return b
 
 
-def is_prime(x: int, k: int=10) -> bool:
+def is_prime(x: int, k: int=100) -> bool:
     """Checks if a number x is prime using a probabilistic Miller-Rabin primality test.
 
     The probability of a composite number being incorrectly identified as prime is at most (1/4)^k.
@@ -137,9 +136,12 @@ def is_prime(x: int, k: int=10) -> bool:
 
     multiplier = x
 
-    for i in random.sample(range(2, mod - 1), k):
+    while k > 0:
+        k -= 1
 
+        i = random.randint(2, mod - 1)
         cur = pow(i, multiplier, mod)
+
         if cur in (1, mod - 1):
             continue
 
@@ -155,44 +157,6 @@ def is_prime(x: int, k: int=10) -> bool:
     return True
 
 
-# def is_prime_miller_rabin(n: int, k: int = 100) -> bool:
-#     """Checks if a number is prime using the Miller-Rabin primality test.
-
-#     Args:
-#         n: The number to check for primality (integer).
-#         k: The number of iterations (integer, higher values increase reliability). Defaults to 100.
-
-#     Returns:
-#         True if n is likely prime, False otherwise (boolean).
-#     """
-#     if n <= 1:
-#         return False
-#     if n <= 3:
-#         return True
-#     if n % 2 == 0:
-#         return False
-
-#     r, d = 0, n - 1
-#     while d % 2 == 0:
-#         r += 1
-#         d //= 2
-
-#     for _ in range(k):
-#         a = random.randint(2, n - 2)
-#         x = pow(a, d, n)
-#         if x == 1 or x == n - 1:
-#             continue
-
-#         for _ in range(r - 1):
-#             x = pow(x, 2, n)
-#             if x == n - 1:
-#                 break
-#         else:
-#             return False
-
-#     return True
-
-
 def generate_prime(bit_length: int) -> int:
     """Generates a random prime number of the specified bit length.
 
@@ -202,16 +166,14 @@ def generate_prime(bit_length: int) -> int:
     Returns:
         A randomly generated prime number with the specified bit length (integer).
     """
-    # lower_bound = 2 ** (bit_length - 1)
-    # upper_bound = 2 ** bit_length - 1
+    # lower_bound = binary_exponentiation(2, bit_length - 1) + 1
+    # upper_bound = binary_exponentiation(2, bit_length) - 1
 
-    lower_bound = binary_exponentiation(2, bit_length - 1) + 1
-    upper_bound = binary_exponentiation(2, bit_length) - 1
+    lower_bound = pow(2, bit_length - 1) + 1
+    upper_bound = pow(2, bit_length) - 1
 
     while True:
         p = random.randrange(lower_bound, upper_bound, 2)
-        # print(p)
-        # print(is_prime(p))
 
         if is_prime(p):
             return p
@@ -229,7 +191,7 @@ def genarate_prime_pair(message_bit_length: int) -> tuple[int, int]:
     Returns:
         A tuple containing two distinct prime numbers (p, q) (tuple of integers).
     """
-    key_bit_length = max(100, message_bit_length * 2)
+    key_bit_length = max(MODULUS_BIT_LENGTH, message_bit_length * 2)
 
     p_bit_length = key_bit_length // 2
     q_bit_length = key_bit_length - p_bit_length
@@ -244,7 +206,7 @@ def genarate_prime_pair(message_bit_length: int) -> tuple[int, int]:
 
 
 def find_inverse(a: int, n: int) -> tuple[int, int]:
-    """Finds the extended Euclidean Algorithm for a and n.
+    """Finds inverse of a modulo n using extended Euclidean Algorithm for a and n.
 
     Returns a tuple (gcd, s, t) such that gcd = a*s + n*t.
     If gcd == 1, then s is the modular multiplicative inverse of a modulo n.
@@ -258,23 +220,20 @@ def find_inverse(a: int, n: int) -> tuple[int, int]:
         and the coefficients s and t (tuple of integers).
     """
     if n == 0:
-        return (a, 1, 0)
-    else:
-        s2, t2, s1, t1 = 1, 0, 0, 1
-        while n > 0:
-            q = a // n
-            r = a - n * q
-            s = s2 - q * s1
-            t = t2 - q * t1
+        return a, 1
 
-            a, n = n, r
-            s2, t2 = s1, t1
-            s1, t1 = s, t
+    s2, t2, s1, t1 = 1, 0, 0, 1
+    while n > 0:
+        q = a // n
+        r = a - n * q
+        s = s2 - q * s1
+        t = t2 - q * t1
 
-        # while s2 < 0:
-        #     s2 += n
+        a, n = n, r
+        s2, t2 = s1, t1
+        s1, t1 = s, t
 
-        return a, s2
+    return a, s2
 
 
 def modular_inverse(a: int, n: int) -> int | None:
@@ -314,129 +273,144 @@ def euler_totient(p: int, q: int) -> int:
     return (p - 1) * (q - 1)
 
 
-def msg_to_number(message, alphabet_type="ukr", n=None) -> list[int]:
-    """
-    Converts messages into a sequence of integers for RSA.
-    Args:
-        message: A message line.
-        alphabet_type: Alphabet type ("ukr" or "eng").
-        n: The maximum value for determining the size of the block.
-    Returns:
-        List of integers representing the message blocks.
-    """
-    if alphabet_type == "ukr":
-        letters_upper = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ "
-        letters_lower = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
-        max_digit = 33
-    else:
-        letters_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
-        letters_lower = "abcdefghijklmnopqrstuvwxyz "
-        max_digit = 26
+# def msg_to_number(message: str, alphabet_type: str="ukr", n: int | None=None) -> list[int]:
+#     """
+#     Converts messages into a sequence of integers for RSA.
+#     Args:
+#         message: A message line.
+#         alphabet_type: Alphabet type ("ukr" or "eng").
+#         n: The maximum value for determining the size of the block.
+#     Returns:
+#         List of integers representing the message blocks.
+#     """
+#     if alphabet_type == "ukr":
+#         letters_upper = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ "
+#         letters_lower = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
+#         max_digit = 33
+#     else:
+#         letters_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+#         letters_lower = "abcdefghijklmnopqrstuvwxyz "
+#         max_digit = 26
 
-    digits = "0123456789"
-    punctuation = ".,!?-:;()"
+#     digits = "0123456789"
+#     punctuation = ".,!?-:;()"
 
-    letter_to_num = {}
+#     letter_to_num = {}
 
-    for i, letter in enumerate(letters_upper):
-        letter_to_num[letter] = f"{i:02}"
+#     for i, letter in enumerate(letters_upper):
+#         letter_to_num[letter] = f"{i:02}"
 
-    for i, letter in enumerate(letters_lower):
-        letter_to_num[letter] = f"{60+i:02}"
+#     for i, letter in enumerate(letters_lower):
+#         letter_to_num[letter] = f"{60+i:02}"
 
-    for i, digit in enumerate(digits):
-        letter_to_num[digit] = f"{40+i:02}"
+#     for i, digit in enumerate(digits):
+#         letter_to_num[digit] = f"{40+i:02}"
 
-    for i, punct in enumerate(punctuation):
-        letter_to_num[punct] = f"{50+i:02}"
+#     for i, punct in enumerate(punctuation):
+#         letter_to_num[punct] = f"{50+i:02}"
 
-    digits_str = ""
+#     digits_str = ""
 
-    for char in message:
-        if char in letter_to_num:
-            digits_str += letter_to_num[char]
-        else:
-            digits_str += "99"
+#     for char in message:
+#         if char in letter_to_num:
+#             digits_str += letter_to_num[char]
+#         else:
+#             digits_str += "99"
 
-    if n is None:
-        n = 2**2048
+#     if n is None:
+#         n = 2**2048
 
-    n_2 = 1
-    while int(str(max_digit) * n_2) < n:
-        n_2 += 1
-    n_2 -= 1
-    block_size = n_2
+#     n_2 = 1
+#     while int(str(max_digit) * n_2) < n:
+#         n_2 += 1
+#     n_2 -= 1
+#     block_size = n_2
 
-    # if len(digits_str) % block_size != 0:
-    #     padding_needed = block_size - (len(digits_str) % block_size)
-    #     digits_str += "0" * padding_needed
+#     # if len(digits_str) % block_size != 0:
+#     #     padding_needed = block_size - (len(digits_str) % block_size)
+#     #     digits_str += "0" * padding_needed
 
-    blocks = [
-        int(digits_str[i : i + block_size])
-        for i in range(0, len(digits_str), block_size)
-    ]
-    return blocks
+#     blocks = [
+#         int(digits_str[i : i + block_size])
+#         for i in range(0, len(digits_str), block_size)
+#     ]
+#     return blocks
 
 
-def number_to_msg(blocks, alphabet_type="ukr", block_size=None):
-    """
-    Converts encoded number blocks back to the original message.
-    Args:
-        blocks: List of integers representing encoded message blocks.
-        alphabet_type: Alphabet type ("ukr" or "eng").
-        block_size: The size of each block in digits.
-    Returns:
-        Original message as a string.
-    """
-    if alphabet_type == "ukr":
-        letters_upper = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ "
-        letters_lower = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
-    else:
-        letters_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
-        letters_lower = "abcdefghijklmnopqrstuvwxyz "
+# def number_to_msg(blocks, alphabet_type="ukr", block_size=None):
+#     """
+#     Converts encoded number blocks back to the original message.
+#     Args:
+#         blocks: List of integers representing encoded message blocks.
+#         alphabet_type: Alphabet type ("ukr" or "eng").
+#         block_size: The size of each block in digits.
+#     Returns:
+#         Original message as a string.
+#     """
+#     if alphabet_type == "ukr":
+#         letters_upper = "АБВГҐДЕЄЖЗИІЇЙКЛМНОПРСТУФХЦЧШЩЬЮЯ "
+#         letters_lower = "абвгґдеєжзиіїйклмнопрстуфхцчшщьюя "
+#     else:
+#         letters_upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ "
+#         letters_lower = "abcdefghijklmnopqrstuvwxyz "
 
-    digits = "0123456789"
-    punctuation = ".,!?-:;()"
+#     digits = "0123456789"
+#     punctuation = ".,!?-:;()"
 
-    num_to_letter = {}
+#     num_to_letter = {}
 
-    for i, letter in enumerate(letters_upper):
-        num_to_letter[f"{i:02}"] = letter
+#     for i, letter in enumerate(letters_upper):
+#         num_to_letter[f"{i:02}"] = letter
 
-    for i, letter in enumerate(letters_lower):
-        num_to_letter[f"{60+i:02}"] = letter
+#     for i, letter in enumerate(letters_lower):
+#         num_to_letter[f"{60+i:02}"] = letter
 
-    for i, digit in enumerate(digits):
-        num_to_letter[f"{40+i:02}"] = digit
+#     for i, digit in enumerate(digits):
+#         num_to_letter[f"{40+i:02}"] = digit
 
-    for i, punct in enumerate(punctuation):
-        num_to_letter[f"{50+i:02}"] = punct
+#     for i, punct in enumerate(punctuation):
+#         num_to_letter[f"{50+i:02}"] = punct
 
-    num_to_letter["99"] = "?"
+#     num_to_letter["99"] = "?"
 
-    if block_size is None:
-        block_size = len(str(blocks[0]))
-        if block_size % 2 != 0:
-            block_size += 1
+#     if block_size is None:
+#         block_size = len(str(blocks[0]))
+#         if block_size % 2 != 0:
+#             block_size += 1
 
-    digits_str = ""
-    for block in blocks:
-        block_str = str(block).zfill(block_size)
-        digits_str += block_str
+#     digits_str = ""
+#     for block in blocks:
+#         block_str = str(block).zfill(block_size)
+#         digits_str += block_str
 
-    while digits_str.endswith("00") and len(digits_str) > 2:
-        digits_str = digits_str[:-2]
+#     while digits_str.endswith("00") and len(digits_str) > 2:
+#         digits_str = digits_str[:-2]
 
-    message = ""
-    for i in range(0, len(digits_str), 2):
-        if i + 1 < len(digits_str):
-            digit_pair = digits_str[i : i + 2]
-            if digit_pair in num_to_letter:
-                message += num_to_letter[digit_pair]
-            else:
-                message += "?"
+#     message = ""
+#     for i in range(0, len(digits_str), 2):
+#         if i + 1 < len(digits_str):
+#             digit_pair = digits_str[i : i + 2]
+#             if digit_pair in num_to_letter:
+#                 message += num_to_letter[digit_pair]
+#             else:
+#                 message += "?"
 
-    return message
+#     return message
+
+
+# def message_to_number(message: str) -> int:
+#     number = int.from_bytes(message.encode("utf-8"))
+
+#     if number.bit_length() > MODULUS_BIT_LENGTH:
+#         raise ValueError("Message is too long")
+
+#     return number
+
+
+# def number_to_message(number: int) -> str:
+#     message = number.to_bytes((number.bit_length() + 7) // 8, "big").decode("utf-8", errors="ignore")
+
+#     return message
 
 
 def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
@@ -444,6 +418,8 @@ def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
 
     Returns:
         A tuple containing the public key (e, n) and the private key (d, n).
+        Public key contains the encryption exponent 'e' and modulus 'n'.
+        Private key contains the decryption exponent 'd' and modulus 'n'.
     """
     p, q = genarate_prime_pair(0)
 
@@ -458,29 +434,61 @@ def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
     return (e, n), (d, n)
 
 
-def encode_message() -> int:
-    pass
+def encode_message(message: str) -> int:
+    """Encodes a message into an integer for RSA encryption."""
+    number = int.from_bytes(message.encode("utf-8"))
+
+    if number.bit_length() > MODULUS_BIT_LENGTH:
+        raise ValueError("Message is too long.")
+
+    return number
 
 
-def decode_message() -> str:
-    pass
+def decode_message(message_number: int) -> str:
+    """Decodes an integer back into a string message."""
+    message = message_number.to_bytes(
+        (message_number.bit_length() + 7) // 8, "big").decode("utf-8", errors="ignore")
+
+    return message
 
 
-def encrypt_message(message: str, encryption_exponent: int, mod: int) -> int:
-    message_number = msg_to_number(message)
-    print("Original message number:", message_number)
-    encrypted_message = []
-    for block in message_number:
-        encrypted_message.append(binary_exponentiation(block, encryption_exponent, mod))
-    return encrypted_message
+def encrypt_message(message: str, public_key: tuple[int, int]) -> tuple[int, str]:
+    """Encrypts a message using the RSA public key.
+    Args:
+        message: The message to be encrypted (string).
+        public_key: The RSA public key (tuple of integers).
+        Returns:
+            A tuple containing the encrypted message (integer) and the message hash (string).
+    """
+    encryption_exponent, mod = public_key
+    message_hash = calculate_message_hash(message)
+
+    encoded_message = encode_message(message)
+    print("Encoded message:", encoded_message)
+    encrypted_message = binary_exponentiation(encoded_message, encryption_exponent, mod)
+    return encrypted_message, message_hash
 
 
-def decrypt_message(encrypted_message: list[int], decryption_exponent: int, mod: int) -> str:
-    decrypted_number = []
-    for block in encrypted_message:
-        decrypted_number.append(binary_exponentiation(block, decryption_exponent, mod))
-    print("Decrypted message", decrypted_number)
-    return number_to_msg(decrypted_number)
+def decrypt_message(encrypted_message: list[int], private_key: tuple[int, int], message_hash: str) -> str:
+    """Decrypts an encrypted message using the RSA private key.
+    Args:
+        encrypted_message: The encrypted message (integer).
+        private_key: The RSA private key (tuple of integers).
+        message_hash: The hash of the original message (string).
+    Returns:
+        The decrypted message (string).
+    Raises:
+        ValueError: If the message integrity check fails.
+    """
+    decryption_exponent, mod = private_key
+
+    decrypted_number = binary_exponentiation(encrypted_message, decryption_exponent, mod)
+    message = decode_message(decrypted_number)
+
+    if not verify_message_integrity(message, message_hash):
+        raise ValueError("Message integrity check failed.")
+
+    return message
 
 
 def calculate_message_hash(message: str) -> str:
@@ -495,16 +503,20 @@ def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
 
 
 if __name__ == '__main__':
-    message = "Привіт, світ!"
-    print("Original message:", message)
+    msg = "qwerty123456789sdsajokdvjoskdvjjjjjjjjjjk;vbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbnc😀qwerty123456789sdsajokdvjoskdvjjjjjjjjjjk;vbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbnc😀"
+    print("Original message:", msg)
 
-    public_key, private_key = generate_key_pair()
-    print("Public key:", public_key)
-    print("Private key:", private_key)
+    t1 = time()
+    public, private = generate_key_pair()
+    print("Public key:", public)
+    print("Private key:", private)
     print()
 
-    encrypted_message = encrypt_message(message, *public_key)
-    print("Encrypted message:", encrypted_message)
+    encrypted_msg, msg_hash = encrypt_message(msg, public)
+    print("Encrypted message:", encrypted_msg)
 
-    decrypted_message = decrypt_message(encrypted_message, *private_key)
-    print("Decrypted message:", decrypted_message)
+    decrypted_msg = decrypt_message(encrypted_msg, private, msg_hash)
+    print("Decrypted message:", decrypted_msg)
+    t2 = time()
+    print()
+    print("Time taken:", t2 - t1)

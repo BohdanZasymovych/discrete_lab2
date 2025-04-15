@@ -3,12 +3,12 @@ RSA client module
 """
 
 import random
+from hashlib import sha256
 import socket
 import threading
-import random
 
 
-def modular_exponentiation(a: int, power: int, mod: int) -> int:
+def binary_exponentiation(a: int, power: int, mod: int | None=None) -> int:
     """Calculates the modular exponentiation of a number.
 
     Args:
@@ -20,6 +20,14 @@ def modular_exponentiation(a: int, power: int, mod: int) -> int:
         The result of (a^power) % mod (integer).
     """
     res = 1
+    if mod is None:
+        while power > 0:
+            if power & 1:
+                res = res * a
+            a = a**2
+            power >>= 1
+        return res
+
     while power > 0:
         if power & 1:
             res = res * a % mod
@@ -103,6 +111,7 @@ def calculate_decryption_exponent(a, phi):
     """
     b = find_inverse(a, phi)
     return b
+
 
 def is_prime(x: int, k: int) -> bool:
     """Checks if a number x is prime using a probabilistic Miller-Rabin primality test.
@@ -195,8 +204,12 @@ def generate_prime(bit_length: int) -> int:
     Returns:
         A randomly generated prime number with the specified bit length (integer).
     """
-    lower_bound = 2 ** (bit_length - 1)
-    upper_bound = 2**bit_length - 1
+    # lower_bound = 2 ** (bit_length - 1)
+    # upper_bound = 2**bit_length - 1
+
+    lower_bound = modular_exponentiation(2, (bit_length-1))
+    2 ** (bit_length - 1)
+    upper_bound = 2 ** bit_length - 1
 
     while True:
         p = random.randrange(lower_bound, upper_bound, 2)
@@ -328,12 +341,15 @@ def decrypt() -> str:
     pass
 
 
-def calculate_message_hash():
-    pass
+def calculate_message_hash(message: str) -> str:
+    """Calculates message hash using sha-256 hashing algorithm"""
+    return sha256(message.encode("utf-8")).hexdigest()
 
 
-def verify_message_integrity() -> bool:
-    pass
+def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
+    """Verifies message integrity by calculating its hash and comparing with expected hash"""
+    message_hash = sha256(message.encode("utf-8")).hexdigest()
+    return message_hash == expected_message_hash
 
 
 class Client:

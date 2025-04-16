@@ -5,7 +5,7 @@ from hashlib import sha256
 
 
 # The length of the modulus for RSA encryption/decryption.
-MODULUS_BIT_LENGTH = 4096
+MODULUS_BIT_LENGTH = 1024
 
 
 def binary_exponentiation(a: int, power: int, mod: int | None=None) -> int:
@@ -179,7 +179,7 @@ def generate_prime(bit_length: int) -> int:
             return p
 
 
-def genarate_prime_pair(message_bit_length: int) -> tuple[int, int]:
+def genarate_prime_pair() -> tuple[int, int]:
     """Generates two distinct prime numbers p and q for RSA.
 
     For secure RSA, the key length (p*q) should be
@@ -191,10 +191,8 @@ def genarate_prime_pair(message_bit_length: int) -> tuple[int, int]:
     Returns:
         A tuple containing two distinct prime numbers (p, q) (tuple of integers).
     """
-    key_bit_length = max(MODULUS_BIT_LENGTH, message_bit_length * 2)
-
-    p_bit_length = key_bit_length // 2
-    q_bit_length = key_bit_length - p_bit_length
+    p_bit_length = MODULUS_BIT_LENGTH // 2
+    q_bit_length = MODULUS_BIT_LENGTH - p_bit_length
 
     p = generate_prime(p_bit_length)
     q = generate_prime(q_bit_length)
@@ -208,7 +206,7 @@ def genarate_prime_pair(message_bit_length: int) -> tuple[int, int]:
 def find_inverse(a: int, n: int) -> tuple[int, int]:
     """Finds inverse of a modulo n using extended Euclidean Algorithm for a and n.
 
-    Returns a tuple (gcd, s, t) such that gcd = a*s + n*t.
+    Returns a tuple (gcd, s) such that gcd = a*s + n*t.
     If gcd == 1, then s is the modular multiplicative inverse of a modulo n.
 
     Args:
@@ -217,7 +215,7 @@ def find_inverse(a: int, n: int) -> tuple[int, int]:
 
     Returns:
         A tuple containing the greatest common divisor (gcd),
-        and the coefficients s and t (tuple of integers).
+        and the coefficient s (tuple of integers).
     """
     if n == 0:
         return a, 1
@@ -421,7 +419,7 @@ def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
         Public key contains the encryption exponent 'e' and modulus 'n'.
         Private key contains the decryption exponent 'd' and modulus 'n'.
     """
-    p, q = genarate_prime_pair(0)
+    p, q = genarate_prime_pair()
 
     n = p * q
 
@@ -434,11 +432,14 @@ def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
     return (e, n), (d, n)
 
 
-def encode_message(message: str) -> int:
+def encode_message(message: str, mod: int) -> int:
     """Encodes a message into an integer for RSA encryption."""
     number = int.from_bytes(message.encode("utf-8"))
 
-    if number.bit_length() > MODULUS_BIT_LENGTH:
+    # if number.bit_length() >= MODULUS_BIT_LENGTH:
+    #     raise ValueError("Message is too long.")
+
+    if number >= mod:
         raise ValueError("Message is too long.")
 
     return number
@@ -463,13 +464,13 @@ def encrypt_message(message: str, public_key: tuple[int, int]) -> tuple[int, str
     encryption_exponent, mod = public_key
     message_hash = calculate_message_hash(message)
 
-    encoded_message = encode_message(message)
-    print("Encoded message:", encoded_message)
+    encoded_message = encode_message(message, mod)
+    # print("Encoded message:", encoded_message)
     encrypted_message = binary_exponentiation(encoded_message, encryption_exponent, mod)
     return encrypted_message, message_hash
 
 
-def decrypt_message(encrypted_message: list[int], private_key: tuple[int, int], message_hash: str) -> str:
+def decrypt_message(encrypted_message: int, private_key: tuple[int, int], message_hash: str=None) -> str:
     """Decrypts an encrypted message using the RSA private key.
     Args:
         encrypted_message: The encrypted message (integer).
@@ -485,8 +486,9 @@ def decrypt_message(encrypted_message: list[int], private_key: tuple[int, int], 
     decrypted_number = binary_exponentiation(encrypted_message, decryption_exponent, mod)
     message = decode_message(decrypted_number)
 
-    if not verify_message_integrity(message, message_hash):
-        raise ValueError("Message integrity check failed.")
+    if message_hash is not None:
+        if not verify_message_integrity(message, message_hash):
+            raise ValueError("Message integrity check failed.")
 
     return message
 
@@ -503,10 +505,10 @@ def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
 
 
 if __name__ == '__main__':
-    msg = "qwerty123456789sdsajokdvjoskdvjjjjjjjjjjk;vbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbnc😀qwerty123456789sdsajokdvjoskdvjjjjjjjjjjk;vbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbncvbnc😀"
+    msg = "1"
     print("Original message:", msg)
 
-    t1 = time()
+    start_time = time()
     public, private = generate_key_pair()
     print("Public key:", public)
     print("Private key:", private)
@@ -516,7 +518,9 @@ if __name__ == '__main__':
     print("Encrypted message:", encrypted_msg)
 
     decrypted_msg = decrypt_message(encrypted_msg, private, msg_hash)
-    print("Decrypted message:", decrypted_msg)
-    t2 = time()
+
     print()
-    print("Time taken:", t2 - t1)
+    print("Decrypted message:", decrypted_msg)
+    finish_time = time()
+    print()
+    print("Time taken:", finish_time - start_time)

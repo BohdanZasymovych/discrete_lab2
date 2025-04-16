@@ -39,21 +39,39 @@ class Client:
         self.s.send(self.username.encode())
         print(f"Connected to server with username: {self.username}")
 
-        # exchange public keys
-        encryption_exponent = int(self.s.recv(1024).decode())
-        mod = int(self.s.recv(1024).decode())
-        self.server_public_key = (encryption_exponent, mod)
+        # Key exchange
+        self.server_public_key = self.__receive_public_key()
         print(f"Server public key: {self.server_public_key}")
-
-        encryption_exponent, mod = self.public_key
-        self.s.send(str(encryption_exponent).encode())
-        self.s.send(str(mod).encode())
+        self.__send_public_key()
         print("Public key sent to server")
 
         message_handler = threading.Thread(target=self.read_handler, args=())
         message_handler.start()
         input_handler = threading.Thread(target=self.write_handler, args=())
         input_handler.start()
+
+    def __send_public_key(self):
+        """Sends public key to the client"""
+        encryption_exponent, mod = self.public_key
+
+        encryption_exponent_byte_length = (encryption_exponent.bit_length()+7) // 8
+        mod_byte_length = (mod.bit_length()+7) // 8
+
+        header = encryption_exponent_byte_length.to_bytes(4, 'big') + mod_byte_length.to_bytes(4, 'big')
+        encryption_exponent = encryption_exponent.to_bytes(encryption_exponent_byte_length, 'big')
+        mod = mod.to_bytes(mod_byte_length, 'big')
+
+        self.s.sendall(header+encryption_exponent+mod)
+
+    def __receive_public_key(self) -> tuple:
+        """Receives public key from the client"""
+        encryption_exponent_byte_length = int.from_bytes(self.s.recv(4), 'big')
+        mod_byte_length = int.from_bytes(self.s.recv(4), 'big')
+
+        encryption_exponent = int.from_bytes(self.s.recv(encryption_exponent_byte_length), 'big')
+        mod = int.from_bytes(self.s.recv(mod_byte_length), 'big')
+
+        return (encryption_exponent, mod)
 
     def __send_message(self, msg: str, public_key: tuple):
         """Encrypts message and sends it to the server"""
@@ -94,5 +112,5 @@ class Client:
 
 if __name__ == "__main__":
     user = input("Enter your username: ")
-    cl = Client("127.0.0.1", 9001, user)
+    cl = Client("127.0.0.1", 9000, user)
     cl.init_connection()

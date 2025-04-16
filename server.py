@@ -1,3 +1,6 @@
+"""
+RSA server module
+"""
 import socket
 import threading
 
@@ -13,8 +16,8 @@ class Server:
     def __init__(self, port: int) -> None:
         self.host = "127.0.0.1"
         self.port = port
-        self.username_lookup = {}
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.username_lookup = {} # username -> (socket, public_key)
         self.public_key = None
         self.private_key = None
 
@@ -33,17 +36,11 @@ class Server:
             username = c.recv(1024).decode()
 
             print(f"{username} tries to connect")
-            self.broadcast(f"new person has joined: {username}")
+            self.broadcast(f"New person has joined: {username}")
 
-            # send public key to the client
-            encryption_exponent, mod = self.public_key
-            c.send(str(encryption_exponent).encode())
-            c.send(str(mod).encode())
-            print("public key sent")
-
-            encryption_exponent = int(c.recv(1024).decode())
-            mod = int(c.recv(1024).decode())
-            client_public_key = (encryption_exponent, mod)
+            # Key exchange
+            self.__send_public_key(c)
+            client_public_key = self.__receive_public_key(c)
             print(client_public_key)
             self.username_lookup[username] = (c, client_public_key)
 
@@ -53,6 +50,29 @@ class Server:
                     c,
                 ),
             ).start()
+
+    def __send_public_key(self, c: socket):
+        """Sends public key to the client"""
+        encryption_exponent, mod = self.public_key
+
+        encryption_exponent_byte_length = (encryption_exponent.bit_length()+7) // 8
+        mod_byte_length = (mod.bit_length()+7) // 8
+
+        header = encryption_exponent_byte_length.to_bytes(4, 'big') + mod_byte_length.to_bytes(4, 'big')
+        encryption_exponent = encryption_exponent.to_bytes(encryption_exponent_byte_length, 'big')
+        mod = mod.to_bytes(mod_byte_length, 'big')
+
+        c.sendall(header+encryption_exponent+mod)
+
+    def __receive_public_key(self, c: socket) -> tuple:
+        """Receives public key from the client"""
+        encryption_exponent_byte_length = int.from_bytes(c.recv(4), 'big')
+        mod_byte_length = int.from_bytes(c.recv(4), 'big')
+
+        encryption_exponent = int.from_bytes(c.recv(encryption_exponent_byte_length), 'big')
+        mod = int.from_bytes(c.recv(mod_byte_length), 'big')
+
+        return (encryption_exponent, mod)
 
     def __send_message(self, c, msg: str, public_key: tuple):
         """Encrypts message and sends it to the server"""
@@ -96,7 +116,7 @@ class Server:
 
 if __name__ == "__main__":
     try:
-        s = Server(9001)
+        s = Server(9000)
         s.start()
     finally:
         s.s.close()

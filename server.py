@@ -74,7 +74,7 @@ class Server:
 
         return (encryption_exponent, mod)
 
-    def __send_message(self, c, msg: str, public_key: tuple):
+    def __send_message(self, c: socket, msg: str, public_key: tuple):
         """Encrypts message and sends it to the server"""
         msg, msg_hash = encrypt_message(msg, public_key)
 
@@ -116,7 +116,7 @@ class Server:
 
 if __name__ == "__main__":
     try:
-        s = Server(9000)
+        s = Server(9001)
         s.start()
     finally:
         s.s.close()

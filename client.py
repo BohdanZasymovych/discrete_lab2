@@ -112,5 +112,5 @@ class Client:
 
 if __name__ == "__main__":
     user = input("Enter your username: ")
-    cl = Client("127.0.0.1", 9000, user)
+    cl = Client("127.0.0.1", 9001, user)
     cl.init_connection()

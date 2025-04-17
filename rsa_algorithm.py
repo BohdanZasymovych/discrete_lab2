@@ -166,9 +166,6 @@ def generate_prime(bit_length: int) -> int:
     Returns:
         A randomly generated prime number with the specified bit length (integer).
     """
-    # lower_bound = binary_exponentiation(2, bit_length - 1) + 1
-    # upper_bound = binary_exponentiation(2, bit_length) - 1
-
     lower_bound = pow(2, bit_length - 1) + 1
     upper_bound = pow(2, bit_length) - 1
 

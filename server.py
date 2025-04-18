@@ -8,6 +8,7 @@ import threading
 from rsa_algorithm import decrypt_message, encrypt_message, generate_key_pair
 
 HASH_BYTE_LENGTH = 64
+PORT = 9001
 
 
 class Server:
@@ -26,7 +27,7 @@ class Server:
         self.s.bind((self.host, self.port))
         self.s.listen(100)
 
-        # generate keys
+        # Generate keys
         public_key, private_key = generate_key_pair()
         self.public_key = public_key
         self.private_key = private_key
@@ -36,18 +37,21 @@ class Server:
             username = c.recv(1024).decode()
 
             print(f"{username} tries to connect")
-            self.broadcast(f"New person has joined: {username}")
 
-            # Key exchange
+            # Keys exchange
             self.__send_public_key(c)
+            print("Public key sent to client")
+
             client_public_key = self.__receive_public_key(c)
-            print(client_public_key)
+            print(f"Client's public key was received: {client_public_key}")
             self.username_lookup[username] = (c, client_public_key)
 
             threading.Thread(
                 target=self.handle_client,
                 args=(c,),
             ).start()
+
+            self.broadcast(f"New person has joined: {username}")
 
     def __send_public_key(self, c: socket):
         """Sends public key to the client"""
@@ -119,8 +123,9 @@ class Server:
 
 
 if __name__ == "__main__":
+    print(f"Server is runing on port: {PORT}")
     try:
-        s = Server(9001)
+        s = Server(PORT)
         s.start()
     finally:
         s.s.close()

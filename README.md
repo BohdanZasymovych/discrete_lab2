@@ -1,5 +1,9 @@
 # Simple messenger with RSA encryption
 
+## Split of tasks
+Bohdan Zasymovych: Miller-Rabin primality test, encryption, decryption, hashing and messages exchange
+Andrii Kulbaba: GCD, modular inverse, generation of primes, encryption and decryption exponents, messages encoding and decoding
+
 ## Algorithm description
 RSA is an asymmetric encryption algorithm. It uses two keys: public and private. Public is used to encrypt the message, and private is used to decrypt it.
 

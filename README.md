@@ -26,8 +26,8 @@ To encrypt message it is raised to the power of $e$: $m^e \equiv c \pmod n$\
 To decrypt ciphered message it is raised to the power of $d$: $c^{d} = m^{ed} \equiv m \pmod n$
 
 
-## Algorithm process
-First, we generate two big prime numbers of 512 bits. We try random numbers to generate a prime number and check if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine if the number is prime, but if enough iterations were done, the probability of a mistake is very low, about (1/4)^k, where k is the number of iterations.
+## Genaration of modulus
+Firstly, we generate two big prime numbers with 512 bit length. To generate a prime number we try random numbers and check, if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine, if the number is prime for sure, but if enough iterations were done, the probability of a mistake is very low, about $(\frac{1}{4})^k$, where $k$ is the number of iterations.
 
 ```python
 def is_prime(x: int, k: int=100) -> bool:
@@ -76,51 +76,11 @@ def is_prime(x: int, k: int=100) -> bool:
     return True
 ```
 
-Modulus $n$ will be the product of two prime numbers that were found.
+Modulus $n$ is be calculated as product of two prime numbers that were found.
 
-Then we calculate the encryption exponent, which will be contained in the public key. The encryption exponent must satisfy two conditions:
+## Calculation of encryption and decryption exponents
 
-1. $1 < a < \phi(n)$
-2. $gcd(a, \phi(n)) = 1$
-
-Value 65537 is prioritized, if it meets the conditions.
-
-```python
-def calculate_encryption_exponent(phi_n: int) -> int:
-    lower_bound = 65537 if phi_n <= 65537 else 3
-
-    if lower_bound <= 65537 < phi_n and gcd(65537, phi_n) == 1:
-        return 65537
-
-    max_attempts = 100
-
-    while max_attempts > 0:
-
-        a = random.randint(lower_bound, phi_n - 1)
-        if a % 2 == 0:
-            a += 1
-            if a >= phi_n:
-                a = lower_bound
-
-        if gcd(a, phi_n) == 1:
-            return a
-
-        max_attempts -= 1
-
-    a = lower_bound
-
-    while a < phi_n:
-        if gcd(a, phi_n) == 1:
-            return a
-        a += 2
-
-    # If we don't find any 'a', we try some small primes.
-    for small_prime in [3, 5, 7, 11, 13, 17, 19, 23]:
-        if small_prime < phi_n and gcd(small_prime, phi_n) == 1:
-            return small_prime
-```
-
-The Extended Euclidean Algorithm is used to find the modular multiplicative inverse. We'll search for the inverse of a modulo n
+The Extended Euclidean Algorithm is used to find the modular multiplicative inverse. We'll search for the inverse of a modulo $n$
 ```python
 def find_inverse(a: int, n: int) -> tuple[int, int]:
     """Finds inverse of a modulo n using extended Euclidean Algorithm for a and n.
@@ -177,8 +137,7 @@ def modular_inverse(a: int, n: int) -> int | None:
     return x % n
 ```
 
-Also, the GCD and Oiler functions were released to ensure the correct program operation.
-
+Also, functions calculating GCD and the Euler totient was implemented and are used to calculate encryption and decryption exponents
 ```python
 def gcd(a: int, b: int) -> int:
     """Finds the greatest common divisor (GCD) of two integers.
@@ -193,10 +152,8 @@ def gcd(a: int, b: int) -> int:
     while b:
         a, b = b, a % b
     return a
-
 ```
 
-Also, a function to calculate the Euler totient was implemented
 ```python 
 def euler_totient(p: int, q: int) -> int:
     """Calculates Euler's totient function for two prime numbers p and q.
@@ -212,10 +169,67 @@ def euler_totient(p: int, q: int) -> int:
         The result of Euler's totient function for p and q (integer).
     """
     return (p - 1) * (q - 1)
-
 ```
 
 
+Then we calculate the encryption exponent, which will be contained in the public key. The encryption exponent must satisfy two conditions:
+
+1. $1 < a < \phi(n)$
+2. $gcd(a, \phi(n)) = 1$
+
+Value 65537 is prioritized, if it meets the conditions.
+
+```python
+def calculate_encryption_exponent(phi_n: int) -> int:
+    """Calculates a suitable encryption exponent 'a' for RSA.
+
+    The encryption exponent 'a' must satisfy two conditions:
+    1. 1 < a < phi_n
+    2. gcd(a, phi_n) = 1
+
+    It prioritizes the value 65537 if it meets the conditions.
+    Otherwise, it randomly searches for a suitable exponent within a limited number of attempts.
+    If no random exponent is found, it iterates through odd numbers and small prime numbers.
+
+    Args:
+        phi_n: The result of Euler's totient function for n (integer).
+
+    Returns:
+        A suitable encryption exponent 'a' (integer).
+    """
+
+    lower_bound = 65537 if phi_n <= 65537 else 3
+
+    if lower_bound <= 65537 < phi_n and gcd(65537, phi_n) == 1:
+        return 65537
+
+    max_attempts = 100
+
+    while max_attempts > 0:
+
+        a = random.randint(lower_bound, phi_n - 1)
+        if a % 2 == 0:
+            a += 1
+            if a >= phi_n:
+                a = lower_bound
+
+        if gcd(a, phi_n) == 1:
+            return a
+
+        max_attempts -= 1
+
+    a = lower_bound
+
+    while a < phi_n:
+        if gcd(a, phi_n) == 1:
+            return a
+        a += 2
+
+    # If we don't find any 'a', we try some small primes.
+    for small_prime in [3, 5, 7, 11, 13, 17, 19, 23]:
+        if small_prime < phi_n and gcd(small_prime, phi_n) == 1:
+            return small_prime
+```
 
 ## Hashing to verify integrity
 A hash is used to check message integrity. It is being sent together with an encrypted message, and when a message is decrypted, its hash is calculated and compared with the sent one. If hashes match, message integrity wasn't compromised. Otherwise, the message was changed or corrupted.

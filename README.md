@@ -172,12 +172,98 @@ def euler_totient(p: int, q: int) -> int:
 ```
 
 
+## Hashing to verify integrity
+A hash is used to check message integrity. It is being sent together with an encrypted message, and when a message is decrypted, its hash is calculated and compared with the sent one. If hashes match, message integrity wasn't compromised. Otherwise, the message was changed or corrupted.
+
+The SHA256 hashing algorithm from Python's built-in module hashlib calculates the hash.
+
+```python
+def calculate_message_hash(message: str) -> str:
+    """Calculates message hash using sha-256 hashing algorithm"""
+    return sha256(message.encode("utf-8")).hexdigest()
+
+
+def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
+    """Verifies message integrity by calculating its hash and comparing with expected hash"""
+    message_hash = sha256(message.encode("utf-8")).hexdigest()
+    return message_hash == expected_message_hash
+```
+
+### Generating key pair
+The functions described above are used to generate a key pair.
+Firstly, two primes p and q are generated.\
+Then the modulus is calculated as their product.\
+Then, encryption and decryption exponents are generated.\
+Public key consists of $e$ and $n$, private key consists of $d$ and $n$
+
+```python
+def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
+    """Generates a pair of RSA keys (public and private).
+
+    Returns:
+        A tuple containing the public key (e, n) and the private key (d, n).
+        Public key contains the encryption exponent 'e' and modulus 'n'.
+        Private key contains the decryption exponent 'd' and modulus 'n'.
+    """
+    p, q = genarate_prime_pair()
+
+    n = p * q
+
+    phi_n = euler_totient(p, q)
+
+    e = calculate_encryption_exponent(phi_n)
+
+    d = calculate_decryption_exponent(e, phi_n)
+
+    return (e, n), (d, n)
+```
+
+### Message encryption and decryption
+To encrypt a message, it is first encoded to an integer. Then, it is raised to the power $e$ modulo $n$, and the result is the encrypted message, which can be decrypted only with the private key. When encrypting a message, the message hash is also calculated to be sent together with the message.
+
+The message is raised to the power $d$ modulo $n$ to decrypt it. The encrypted message is decoded from a number to a string. The hash of the decrypted message is calculated and compared with the received hash to verify message integrity.
+
+Before starting the RSA algorithm to encrypt the message, the message must be translated into a number using the function. `UTF-8` provides coverage of all popular characters.
+```
+def encode_message(message: str, mod: int) -> int:
+    """Encodes a message into an integer for RSA encryption."""
+    number = int.from_bytes(message.encode("utf-8"))
+
+    if number >= mod:
+        raise ValueError("Message is too long.")
+
+    return number
+```
+
+
+Once the message has been encoded and encrypted, it is transmitted and decoded into the usual `UTF-8` symbols with the help of this feature
+```python
+ decode_message(message_number: int) -> str:
+    """Decodes an integer back into a string message."""
+    message = message_number.to_bytes(
+        (message_number.bit_length() + 7) // 8, "big"
+    ).decode("utf-8", errors="ignore")
+
+    return message
+```
+
+
+The `calculate_decryption_exponent` function calculates the degree of decryption `d` for the RSA algorithm. This value is a critical private key component used to decrypt messages.
+```python
+def calculate_decryption_exponent(a, phi: int) -> int:
+    """
+    Calculates the decryption exponent 'd' for RSA.
+    """
+    b = modular_inverse(a, phi)
+    return b
+```
+
 Then we calculate the encryption exponent, which will be contained in the public key. The encryption exponent must satisfy two conditions:
 
 1. $1 < a < \phi(n)$
 2. $gcd(a, \phi(n)) = 1$
 
-Value 65537 is prioritized, if it meets the conditions.
+Value 65537 is prioritized if it meets the conditions.
 
 ```python
 def calculate_encryption_exponent(phi_n: int) -> int:
@@ -231,56 +317,6 @@ def calculate_encryption_exponent(phi_n: int) -> int:
             return small_prime
 ```
 
-## Hashing to verify integrity
-A hash is used to check message integrity. It is being sent together with an encrypted message, and when a message is decrypted, its hash is calculated and compared with the sent one. If hashes match, message integrity wasn't compromised. Otherwise, the message was changed or corrupted.
-
-The SHA256 hashing algorithm from Python's built-in module hashlib is used to calculate the hash.
-
-```python
-def calculate_message_hash(message: str) -> str:
-    """Calculates message hash using sha-256 hashing algorithm"""
-    return sha256(message.encode("utf-8")).hexdigest()
-
-
-def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
-    """Verifies message integrity by calculating its hash and comparing with expected hash"""
-    message_hash = sha256(message.encode("utf-8")).hexdigest()
-    return message_hash == expected_message_hash
-```
-
-### Generating key pair
-The functions described above are used to generate a key pair.
-Firstly, two primes p and q are generated.\
-Then the modulus is calculated as their product.\
-Then, encryption and decryption exponents are generated.\
-Public key consists of $e$ and $n$, private key consists of $d$ and $n$
-
-```python
-def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
-    """Generates a pair of RSA keys (public and private).
-
-    Returns:
-        A tuple containing the public key (e, n) and the private key (d, n).
-        Public key contains the encryption exponent 'e' and modulus 'n'.
-        Private key contains the decryption exponent 'd' and modulus 'n'.
-    """
-    p, q = genarate_prime_pair()
-
-    n = p * q
-
-    phi_n = euler_totient(p, q)
-
-    e = calculate_encryption_exponent(phi_n)
-
-    d = calculate_decryption_exponent(e, phi_n)
-
-    return (e, n), (d, n)
-```
-
-### Message encryption and decryption
-To encrypt a message, it is first encoded to an integer. Then, it is raised to the power $e$ modulo $n$, and the result is the encrypted message, which can be decrypted only with the private key. When encrypting a message, the message hash is also calculated to be sent together with the message.
-
-The message is raised to power $d$ modulo $n$ is being raised to decrypt it. The encrypted message is decoded from a number to a string. The hash of the decrypted message is calculated and compared with the received hash to verify message integrity.
 
 ```python
 def encrypt_message(message: str, public_key: tuple[int, int]) -> tuple[int, str]:
@@ -322,13 +358,14 @@ def decrypt_message(encrypted_message: int, private_key: tuple[int, int], messag
     return message
 ```
 
+
 ## Keys exchange
 When a client connects to the server, the key exchange happens. The client sends its public key and receives the server's public key. The server uses the client's public key to encrypt messages and send them to the client. Client uses the server's public key to encrypt messages and send them to the server.
 
 ## Messages exchange
-To send a message, it is encrypted with the public key. Then converted to bytes. Afterwards, the byte length of a message is calculated. When sending a message over a socket, firstly, the header containing 4 bytes determining the length of the message is sent, then comes the message, and after it, its hash.
+To send a message, it is encrypted with the public key. Then converted to bytes. Afterwards, the byte length of a message is calculated. When sending a message over a socket, firstly, the header containing 4 bytes determines the length of the message sent, then comes the message, and after it, its hash.
 
-To receive a message, firstly header containing 4 bytes determining the message length are received. Then the number of bytes specified in the header is received, and 64 bytes of the hash are received. A hexadecimal string of hash computed with the SHA256 algorithm is always 64 bytes long. The message is decoded to an integer, decrypted with the private key, and its integrity is verified. 
+To receive a message, a header containing 4 bytes is needed to determine the message length received. Then the number of bytes specified in the header is received, and 64 bytes of the hash are received. A hexadecimal string of hash computed with the SHA256 algorithm is always 64 bytes long. The message is decoded to an integer, decrypted with the private key, and its integrity is verified. 
 
 ```python
     def __send_message(self, c: socket, msg: str, public_key: tuple):
@@ -357,12 +394,12 @@ To receive a message, firstly header containing 4 bytes determining the message 
 ```
 
 ## Launch program
-Run next command in the terminal in folder where file server.py is located to launch server
+Run the next command in the terminal in the folder where file server.py is located to launch the server
 ```bash
 python3 server.py
 ```
 
-Run next command in the terminal in folder where file client.py is located to launch client
+Run the next command in the terminal in the folder where the file client.py is located to launch the client
 ```bash
 python3 client.py
 ```

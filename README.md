@@ -12,10 +12,10 @@ Define:
 - $m$ - message
 - $c$ - encrypted message
 
-$e$ is choosen as integer coprime to $n$\
+$e$ is choosen as an integer coprime to $n$\
 $d$ is choosen as inverse of e modulo $\phi(n)$. It exists since $gcd(e,n)=1$
 
-According to Eulers's theorem:
+According to Euler's theorem:
 $$x^{k\phi(n)} \equiv 1 \pmod n \Rightarrow x^{k\phi(n) + 1} \equiv x \pmod n, k \in Z$$
 $$k \phi + 1 \equiv 1 \pmod{\phi(n)}$$
 Since $d$ is inverse of $e$ modulo $\phi(n)$:
@@ -23,11 +23,11 @@ $$ed \equiv 1 \pmod{\phi(n)}$$
 $$x^{ed} \equiv x \pmod n$$
 
 To encrypt message it is raised to the power of $e$: $m^e \equiv c \pmod n$\
-To decrypt ciphered message it is raised to the power of $d$: $c^{d} = m^{ed} \equiv m \pmod n$
+To decrypt a ciphered message, it is raised to the power of $d$: $c^{d} = m^{ed} \equiv m \pmod n$
 
 
-## Genaration of modulus
-Firstly, we generate two big prime numbers with 512 bit length. To generate a prime number we try random numbers and check, if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine, if the number is prime for sure, but if enough iterations were done, the probability of a mistake is very low, about $(\frac{1}{4})^k$, where $k$ is the number of iterations.
+## Generation of modulus
+Firstly, we generate two big prime numbers with a 512-bit length. We try random numbers to generate a prime number and check if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine if the number is prime for sure, but if enough iterations were done, the probability of a mistake is very low, about $(\frac{1}{4})^k$, where $k$ is the number of iterations.
 
 ```python
 def is_prime(x: int, k: int=100) -> bool:
@@ -76,7 +76,7 @@ def is_prime(x: int, k: int=100) -> bool:
     return True
 ```
 
-Modulus $n$ is be calculated as product of two prime numbers that were found.
+Modulus $n$ is calculated as the product of two found prime numbers.
 
 ## Calculation of encryption and decryption exponents
 
@@ -136,7 +136,7 @@ def modular_inverse(a: int, n: int) -> int | None:
     return x % n
 ```
 
-Also, functions calculating GCD and the Euler totient was implemented and are used to calculate encryption and decryption exponents
+Also, functions calculating GCD and the Euler totient were implemented and are used to calculate encryption and decryption exponents
 ```python
 def gcd(a: int, b: int) -> int:
     """Finds the greatest common divisor (GCD) of two integers.
@@ -172,7 +172,7 @@ def euler_totient(p: int, q: int) -> int:
 
 
 
-Then we calculate the encryption exponent, which is part of the public key. The encryption exponent must satisfy two conditions:
+Then we calculate the encryption exponent, part of the public key. The encryption exponent must satisfy two conditions:
 
 1. $1 < a < \phi(n)$
 2. $gcd(a, \phi(n)) = 1$

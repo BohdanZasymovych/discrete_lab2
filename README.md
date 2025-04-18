@@ -356,5 +356,16 @@ To receive a message, firstly header containing 4 bytes determining the message 
         return decrypted_msg
 ```
 
+## Launch program
+Run next command in the terminal in folder where file server.py is located to launch server
+```bash
+python3 server.py
+```
+
+Run next command in the terminal in folder where file client.py is located to launch client
+```bash
+python3 client.py
+```
+
 ## Usage example
 ![](usage_example.png)

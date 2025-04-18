@@ -1,7 +1,7 @@
 # Simple messenger with RSA encryption
 
 ## Algorithm description
-RSA is an asymmetric encryption algorithm. It uses two keys: public and private. Public is used to encrypt the message and private to decrypt it.
+RSA is an asymmetric encryption algorithm. It uses two keys: public and private. Public is used to encrypt the message, and private is used to decrypt it.
 
 Define:
 - $p, q$ - prime numbers
@@ -28,7 +28,7 @@ So, to find $ the multiplicative inverse of $ d$ of $e$ modulo $\phi(n)$ has to 
 
 
 ## Algorithm process
-First, we generate two big prime numbers of 512 bits. To generate a prime number, we try random numbers and check if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine if the number is prime, but if enough iterations were done, the probability of a mistake is very low, about (1/4)^k, where k is the number of iterations.
+First, we generate two big prime numbers of 512 bits. We try random numbers to generate a prime number and check if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine if the number is prime, but if enough iterations were done, the probability of a mistake is very low, about (1/4)^k, where k is the number of iterations.
 
 ```python
 def is_prime(x: int, k: int=100) -> bool:
@@ -121,8 +121,8 @@ def calculate_encryption_exponent(phi_n: int) -> int:
             return small_prime
 ```
 
-The Extended Euclidean Algorithm is used to find the modular multiplicative inverse. We'll search inversed number to a in mpdulo n
-```
+The Extended Euclidean Algorithm is used to find the modular multiplicative inverse. We'll search for the inverse of a modulo n
+```python
 def find_inverse(a: int, n: int) -> tuple[int, int]:
     """Finds inverse of a modulo n using extended Euclidean Algorithm for a and n.
 
@@ -152,9 +152,69 @@ def find_inverse(a: int, n: int) -> tuple[int, int]:
         s1, t1 = s, t
 
     return a, s2
+```
+
+
+With the help of this function, we can conveniently find an integer that is inverted to the number by the modulo
+```python
+def modular_inverse(a: int, n: int) -> int | None:
+    """Finds the modular multiplicative inverse of a modulo n.
+
+    Returns an integer x such that (a * x) % n = 1.
+    Returns None if the inverse does not exist (i.e., gcd(a, n) != 1).
+
+    Args:
+        a: The integer for which to find the inverse.
+        n: The modulus.
+
+    Returns:
+        The modular multiplicative inverse of a modulo n (integer), or None if it doesn't exist.
+    """
+    gcd_val, x = find_inverse(a, n)
+
+    if gcd_val != 1:
+        return None
+
+    return x % n
+```
+
+Also, the GCD and Oiler functions were released to ensure the correct program operation.
+
+```python
+def gcd(a: int, b: int) -> int:
+    """Finds the greatest common divisor (GCD) of two integers.
+
+    Args:
+        a: The first integer.
+        b: The second integer.
+
+    Returns:
+        The greatest common divisor of a and b.
+    """
+    while b:
+        a, b = b, a % b
+    return a
 
 ```
 
+Also, a function to calculate the Euler totient was implemented
+```python 
+def euler_totient(p: int, q: int) -> int:
+    """Calculates Euler's totient function for two prime numbers p and q.
+
+    For two distinct prime numbers p and q, Euler's totient function phi(n) = (p-1) * (q-1),
+    where n = p * q.
+
+    Args:
+        p: The first prime number (integer).
+        q: The second prime number (integer).
+
+    Returns:
+        The result of Euler's totient function for p and q (integer).
+    """
+    return (p - 1) * (q - 1)
+
+```
 
 
 
@@ -177,7 +237,7 @@ def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
 
 ### Generating key pair
 The functions described above are used to generate a key pair.
-Firstly two primes p and q is generated.\
+Firstly, two primes p and q are generated.\
 Then the modulus is calculated as their product.\
 Then, encryption and decryption exponents are generated.\
 Public key consists of e and n, private key consists of d and n

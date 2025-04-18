@@ -1,34 +1,34 @@
 # Simple messenger with RSA encryption
 
 ## Algorithm description
-RSA is asymethric encryption algorithm. It uses two keys public and private. Public is used to encrypt message and private to decrypt it.
+RSA is an asymmetric encryption algorithm. It uses two keys: public and private. Public is used to encrypt the message and private to decrypt it.
 
 Define:
 - $p, q$ - prime numbers
 - $n$ - modulus $n = p*q$
-- $\phi(n)$ - euler totient function of $n$
+- $\phi(n)$ - Euler totient function of $n$
 - $e$ - encryption exponent
 - $d$ - decryption exponent
 - $m$ - message
 - $c$ - encrypted message
 
-We want:
-$$m^e \equiv c \pmod n$$
-$$c^d \equiv m \pmod n$$
+We want:\
+$m^e \equiv c \pmod n$\
+$c^d \equiv m \pmod n$
 
-According to Ferma's little theorem:
+According to Fermat's little theorem:
 $$m^{k\phi(n)} \equiv 1 \pmod n$$
 $$m^{k\phi(n) + 1} \equiv m \pmod n$$ 
-where $k \in \Z$
+where $k \in Z$
 
 Let $e$ be integer such that $gcd(e, \phi(n)) = 1$\
-According to Besu's theorem exists such number $d$ that $de \equiv 1 \pmod{\phi(n)}$.
-So to find $d$ multiplicative inverse of $e$ modulo $\phi(n)$ has to be calculated. And $de = k \phi(n) + 1$ thus $m^{de} \equiv m \pmod{\phi(n)}$
+According to Besu's theorem, such a number $d$ exists that $de \equiv 1 \pmod{\phi(n)}$.
+So, to find $ the multiplicative inverse of $ d$ of $e$ modulo $\phi(n)$ has to be calculated. And $de = k \phi(n) + 1$ thus $m^{de} \equiv m \pmod{\phi(n)}$
 
 
 
 ## Algorithm process
-First we generate two big prime numbers with lentgth of 512 bits. To generate prime number we are trying random numbers and checking if they are prime with probabilistic Miller-Rabin primality test. This test cannot determine if number is prime for sure but, if enougth iterations were done, probability of mistake is very low about (1/4)^k where k is number of iterations.
+First, we generate two big prime numbers of 512 bits. To generate a prime number, we try random numbers and check if they are prime with the probabilistic Miller-Rabin primality test. This test cannot determine if the number is prime, but if enough iterations were done, the probability of a mistake is very low, about (1/4)^k, where k is the number of iterations.
 
 ```python
 def is_prime(x: int, k: int=100) -> bool:
@@ -77,14 +77,14 @@ def is_prime(x: int, k: int=100) -> bool:
     return True
 ```
 
-Modulus n will be product of two found primes.
+Modulus n will be the product of two prime numbers that were found.
 
-Then we are calculating encryption exponent which will be contained in the public key. The encryption exponent must satisfy two conditions:
+Then we calculate the encryption exponent, which will be contained in the public key. The encryption exponent must satisfy two conditions:
 
 1. 1 < a < phi_n
 2. gcd(a, phi_n) = 1
 
-Value 65537 is prioritized if it meets the condions.
+Value 65537 is prioritized if it meets the conditions.
 
 ```python
 def calculate_encryption_exponent(phi_n: int) -> int:
@@ -121,10 +121,47 @@ def calculate_encryption_exponent(phi_n: int) -> int:
             return small_prime
 ```
 
-## Hashing to verify integrity
-To check message integrity hash is used. It is being sent together with encrypted message and when message is decrypted its hash is being calculated and compared with sent one. If hashes match message integrity wasn't compromised, othervise message was changed or was corrupted.
+The Extended Euclidean Algorithm is used to find the modular multiplicative inverse. We'll search inversed number to a in mpdulo n
+```
+def find_inverse(a: int, n: int) -> tuple[int, int]:
+    """Finds inverse of a modulo n using extended Euclidean Algorithm for a and n.
 
-To calculate hash SHA256 hashing algorithm from python's built-in module hashlib is used.
+    Returns a tuple (gcd, s) such that gcd = a*s + n*t.
+    If gcd == 1, then s is the modular multiplicative inverse of a modulo n.
+
+    Args:
+        a: The first integer.
+        n: The second integer (modulus).
+
+    Returns:
+        A tuple containing the greatest common divisor (gcd),
+        and the coefficient s (tuple of integers).
+    """
+    if n == 0:
+        return a, 1
+
+    s2, t2, s1, t1 = 1, 0, 0, 1
+    while n > 0:
+        q = a // n
+        r = a - n * q
+        s = s2 - q * s1
+        t = t2 - q * t1
+
+        a, n = n, r
+        s2, t2 = s1, t1
+        s1, t1 = s, t
+
+    return a, s2
+
+```
+
+
+
+
+## Hashing to verify integrity
+A hash is used to check message integrity. It is being sent together with an encrypted message, and when a message is decrypted, its hash is calculated and compared with the sent one. If hashes match, message integrity wasn't compromised. Otherwise, the message was changed or corrupted.
+
+The SHA256 hashing algorithm from Python's built-in module hashlib calculates the hash.
 
 ```python
 def calculate_message_hash(message: str) -> str:
@@ -139,11 +176,11 @@ def verify_message_integrity(message: str, expected_message_hash: str) -> bool:
 ```
 
 ### Generating key pair
-Functions described above is used to generate key pair.
+The functions described above are used to generate a key pair.
 Firstly two primes p and q is generated.\
-Then modulus is calculated as their product.\
-Then encryption and decryption exponents are generated.\
-Public key consist of e and n, private of d, n
+Then the modulus is calculated as their product.\
+Then, encryption and decryption exponents are generated.\
+Public key consists of e and n, private key consists of d and n
 
 ```python
 def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
@@ -168,9 +205,9 @@ def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
 ```
 
 ### Message encryption and decryption
-To encrypt message firstly it is encoded to an integer. Then raised to power e modulo n and result is encrypted message which can be decrypted only with private key. When encrypting message hash also being calculeted to be sent together with message.
+To encrypt a message, it is first encoded to an integer. Then, it is raised to the power e modulo n, and the result is the encrypted message, which can be decrypted only with the private key. When encrypting a message, the message hash is also calculated to be sent together with the message.
 
-To decrypt message it is being raised to the power of d modulo n. Then encrypted message is decoded from number to string. Hash of decrypted message is being calculated and comapared with received hash to verify message integrity.
+The power of d modulo n is being raised to decrypt the message. The encrypted message is decoded from a number to a string. The hash of the decrypted message is calculated and compared with the received hash to verify message integrity.
 
 ```python
 def encrypt_message(message: str, public_key: tuple[int, int]) -> tuple[int, str]:
@@ -213,12 +250,12 @@ def decrypt_message(encrypted_message: int, private_key: tuple[int, int], messag
 ```
 
 ## Keys exchange
-When client connects to the server key exchange happens. Client sends its public key and receives public key of the server. Server uses client's public key to encrypt messages and send them to the client. Client uses server's public key to encrypt messages and send them to the server.
+When a client connects to the server, the key exchange happens. The client sends its public key and receives the server's public key. The server uses the client's public key to encrypt messages and send them to the client. Client uses the server's public key to encrypt messages and send them to the server.
 
 ## Messages exchange
-To send message it is being encrypted with public key. Then convered to the bytes. Afterwards byte length of a message is being calculated. When sending message over a socket firstly header containing 4 bytes determining length of a message is being sent then comes message and after it its hash. Hexadecimal string of hash computed with SHA256 algorithm is always 64 bytes long.
+To send a message, it is encrypted with the public key. Then converted to bytes. Afterwards, the byte length of a message is calculated. When sending a message over a socket, firstly, the header containing 4 bytes determines the length of the message sent, then comes the message, and after it, its hash. A hexadecimal string of hash computed with the SHA256 algorithm is always 64 bytes long.
 
-To receive message firstly header with 4 bytes determining message length are received. Then number of bytes specified in the header are received and after it 64 bytes of the hash is received. Then message is decoded to an integer, decrypted with private key and its integrity is being verified. 
+To receive a message, the first header with 4 bytes determining the message length is received. Then the number of bytes specified in the header is received, and 64 bytes of the hash are received. The message is decoded to an integer, decrypted with the private key, and its integrity is verified. 
 
 ```python
     def __send_message(self, c: socket, msg: str, public_key: tuple):

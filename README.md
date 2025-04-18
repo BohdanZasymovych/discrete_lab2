@@ -12,19 +12,18 @@ Define:
 - $m$ - message
 - $c$ - encrypted message
 
-We want:\
-$m^e \equiv c \pmod n$\
-$c^d \equiv m \pmod n$
+$e$ is choosen as integer coprime to $n$\
+$d$ is choosen as inverse of e modulo $\phi(n)$. It exists since $gcd(e,n)=1$
 
-According to Fermat's little theorem:
-$$m^{k\phi(n)} \equiv 1 \pmod n$$
-$$m^{k\phi(n) + 1} \equiv m \pmod n$$ 
-where $k \in Z$
+According to Eulers's theorem:
+$$x^{k\phi(n)} \equiv 1 \pmod n \Rightarrow x^{k\phi(n) + 1} \equiv x \pmod n, k \in Z$$
+$$k \phi + 1 \equiv 1 \pmod{\phi(n)}$$
+Since $d$ is inverse of $e$ modulo $\phi(n)$:
+$$ed \equiv 1 \pmod{\phi(n)}$$
+$$x^{ed} \equiv x \pmod n$$
 
-Let $e$ be integer such that $gcd(e, \phi(n)) = 1$\
-According to Besu's theorem, such a number $d$ exists that $de \equiv 1 \pmod{\phi(n)}$.
-So, to find $ the multiplicative inverse of $ d$ of $e$ modulo $\phi(n)$ has to be calculated. And $de = k \phi(n) + 1$ thus $m^{de} \equiv m \pmod{\phi(n)}$
-
+To encrypt message it is raised to the power of $e$: $m^e \equiv c \pmod n$\
+To decrypt ciphered message it is raised to the power of $d$: $c^{d} = m^{ed} \equiv m \pmod n$
 
 
 ## Algorithm process
@@ -77,14 +76,14 @@ def is_prime(x: int, k: int=100) -> bool:
     return True
 ```
 
-Modulus n will be the product of two prime numbers that were found.
+Modulus $n$ will be the product of two prime numbers that were found.
 
 Then we calculate the encryption exponent, which will be contained in the public key. The encryption exponent must satisfy two conditions:
 
-1. 1 < a < phi_n
-2. gcd(a, phi_n) = 1
+1. $1 < a < \phi(n)$
+2. $gcd(a, \phi(n)) = 1$
 
-Value 65537 is prioritized if it meets the conditions.
+Value 65537 is prioritized, if it meets the conditions.
 
 ```python
 def calculate_encryption_exponent(phi_n: int) -> int:
@@ -221,7 +220,7 @@ def euler_totient(p: int, q: int) -> int:
 ## Hashing to verify integrity
 A hash is used to check message integrity. It is being sent together with an encrypted message, and when a message is decrypted, its hash is calculated and compared with the sent one. If hashes match, message integrity wasn't compromised. Otherwise, the message was changed or corrupted.
 
-The SHA256 hashing algorithm from Python's built-in module hashlib calculates the hash.
+The SHA256 hashing algorithm from Python's built-in module hashlib is used to calculate the hash.
 
 ```python
 def calculate_message_hash(message: str) -> str:
@@ -240,7 +239,7 @@ The functions described above are used to generate a key pair.
 Firstly, two primes p and q are generated.\
 Then the modulus is calculated as their product.\
 Then, encryption and decryption exponents are generated.\
-Public key consists of e and n, private key consists of d and n
+Public key consists of $e$ and $n$, private key consists of $d$ and $n$
 
 ```python
 def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
@@ -265,9 +264,9 @@ def generate_key_pair() -> tuple[tuple[int, int], tuple[int, int]]:
 ```
 
 ### Message encryption and decryption
-To encrypt a message, it is first encoded to an integer. Then, it is raised to the power e modulo n, and the result is the encrypted message, which can be decrypted only with the private key. When encrypting a message, the message hash is also calculated to be sent together with the message.
+To encrypt a message, it is first encoded to an integer. Then, it is raised to the power $e$ modulo $n$, and the result is the encrypted message, which can be decrypted only with the private key. When encrypting a message, the message hash is also calculated to be sent together with the message.
 
-The power of d modulo n is being raised to decrypt the message. The encrypted message is decoded from a number to a string. The hash of the decrypted message is calculated and compared with the received hash to verify message integrity.
+The message is raised to power $d$ modulo $n$ is being raised to decrypt it. The encrypted message is decoded from a number to a string. The hash of the decrypted message is calculated and compared with the received hash to verify message integrity.
 
 ```python
 def encrypt_message(message: str, public_key: tuple[int, int]) -> tuple[int, str]:
@@ -313,9 +312,9 @@ def decrypt_message(encrypted_message: int, private_key: tuple[int, int], messag
 When a client connects to the server, the key exchange happens. The client sends its public key and receives the server's public key. The server uses the client's public key to encrypt messages and send them to the client. Client uses the server's public key to encrypt messages and send them to the server.
 
 ## Messages exchange
-To send a message, it is encrypted with the public key. Then converted to bytes. Afterwards, the byte length of a message is calculated. When sending a message over a socket, firstly, the header containing 4 bytes determines the length of the message sent, then comes the message, and after it, its hash. A hexadecimal string of hash computed with the SHA256 algorithm is always 64 bytes long.
+To send a message, it is encrypted with the public key. Then converted to bytes. Afterwards, the byte length of a message is calculated. When sending a message over a socket, firstly, the header containing 4 bytes determining the length of the message is sent, then comes the message, and after it, its hash.
 
-To receive a message, the first header with 4 bytes determining the message length is received. Then the number of bytes specified in the header is received, and 64 bytes of the hash are received. The message is decoded to an integer, decrypted with the private key, and its integrity is verified. 
+To receive a message, firstly header containing 4 bytes determining the message length are received. Then the number of bytes specified in the header is received, and 64 bytes of the hash are received. A hexadecimal string of hash computed with the SHA256 algorithm is always 64 bytes long. The message is decoded to an integer, decrypted with the private key, and its integrity is verified. 
 
 ```python
     def __send_message(self, c: socket, msg: str, public_key: tuple):
